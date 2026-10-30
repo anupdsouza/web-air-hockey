@@ -1,4 +1,4 @@
-const C='eh-v3',F=['./','index.html','lib/peerjs.min.js','lib/qr.js','lib/jsQR.js','manifest.webmanifest','icon.svg'];
+const C='eh-v4',F=['./','index.html','lib/peerjs.min.js','lib/qr.js','lib/jsQR.js','manifest.webmanifest','icon.svg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)));self.skipWaiting()});
 self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
 self.addEventListener('fetch',e=>{if(e.request.method!='GET')return;

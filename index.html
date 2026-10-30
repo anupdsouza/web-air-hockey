@@ -43,6 +43,7 @@ textarea{font:11px monospace;width:min(86vw,340px);height:64px;color:#fff;backgr
 <div class="row"><button class="btn pri" id="oB1"></button><button class="btn" id="oB2">Copy</button></div><button class="lnk" id="oBack">Back</button></div>
 <div id="lobby" class="scr"><p class="sub">Room code</p><div id="code">0000</div><p id="lst" class="sub"></p>
 <div class="seg"><button id="mG"></button><button id="mT"></button></div>
+<div class="seg"><button id="lyS">Side by side</button><button id="lyT">Stacked</button></div><p class="sub" id="lyH"></p>
 <div class="sw" id="swLP"></div><p class="sub">Your paddle &amp; territory color</p><div class="sw" id="swL"></div><p class="sub">Your bumper color</p>
 <button class="btn pri" id="bStart">Start game</button><button class="lnk" id="bLeave">Leave</button></div>
 <div id="settings" class="scr"><h2>Settings</h2>
@@ -62,10 +63,10 @@ let HW=600,W=1200,BUMP=[];
 const PCOLS=['#ff4b3e','#35e6ff','#ffd23c','#3cff9a','#e63cff','#ff8a3c'];
 const COLS=['#e63cff','#ffd23c','#3cff9a','#ff7a3c','#ffffff','#3c8bff'];
 let ls={};try{ls=JSON.parse(localStorage.eh||'{}')}catch(e){}
-const cfg={goals:ls.goals||5,mins:ls.mins||3,mode:ls.mode||'goals',col:ls.col||0,bm:ls.bm??2,pc:ls.pc??null};
+const cfg={goals:ls.goals||5,mins:ls.mins||3,mode:ls.mode||'goals',col:ls.col||0,bm:ls.bm??2,pc:ls.pc??null,lay:ls.lay??0};
 const save=()=>{try{localStorage.eh=JSON.stringify(cfg)}catch(e){}};
 let link=null,pc=null,peerObj=null,role=-1,code='',peer=false,scr='home',G=null,gc=1,gp=1,ga=.75,S=null,V=null,inp=null,dirty=false,playing=false,lastE=0,trail=[];
-let sc=1,bx=0,by=0,tp=null;
+let sc=1,bx=0,by=0,tp=null,lay=0,ox=0,oy=0;
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t.h);t.h=setTimeout(()=>t.style.display='none',2600)}
 function show(id){document.querySelectorAll('.scr').forEach(e=>e.classList.toggle('on',e.id==id));cv.style.display=(id=='game'||id=='result')?'block':'none';scr=id}
 const tx=o=>{if(link)link.send(o)};
@@ -129,7 +130,7 @@ function renderAll(){$('#bMv').textContent='Bumpers: '+['off','still','moving'][
   $('#mG').textContent='First to '+cfg.goals;$('#mT').textContent='Timed '+cfg.mins+' min';
   const m=(G&&role==1)?G.mode:cfg.mode,gl=(G&&role==1)?G.goals:cfg.goals,mn=(G&&role==1)?G.mins:cfg.mins;
   $('#mG').textContent='First to '+gl;$('#mT').textContent='Timed '+mn+' min';
-  $('#mG').className=m=='goals'?'on':'';$('#mT').className=m=='time'?'on':'';
+  $('#mG').className=m=='goals'?'on':'';$('#mT').className=m=='time'?'on':'';const ly=(G&&role==1)?G.lay:cfg.lay;$('#lyS').className=ly?'':'on';$('#lyT').className=ly?'on':'';$('#lyH').textContent=ly?'Devices touch top to bottom. Players sit at opposite ends.':'Devices touch left to right.';
   const sb=[COLS,()=>cfg.col,i=>cfg.col=i],sp=[PCOLS,myPc,i=>cfg.pc=i];
   swatches($('#swL'),...sb);swatches($('#swS'),...sb);swatches($('#swLP'),...sp);swatches($('#swSP'),...sp)}
 function updLobby(){$('#code').textContent=code;
@@ -142,11 +143,13 @@ $('#bSet').onclick=()=>{renderAll();show('settings')};$('#bBack').onclick=()=>sh
 $('#bLeave').onclick=$('#bExit').onclick=()=>bail();
 document.querySelectorAll('.stp button').forEach(b=>b.onclick=()=>{const k=b.dataset.k,mx=k=='goals'?15:10;cfg[k]=Math.min(mx,Math.max(1,cfg[k]+ +b.dataset.d));save();renderAll()});
 $('#bMv').onclick=()=>{cfg.bm=(cfg.bm+1)%3;save();renderAll()};
+$('#lyS').onclick=()=>{if(role==1)return;cfg.lay=0;save();renderAll();sendCol()};
+$('#lyT').onclick=()=>{if(role==1)return;cfg.lay=1;save();renderAll();sendCol()};
 $('#mG').onclick=()=>{if(role==1)return;cfg.mode='goals';save();renderAll();if(role==0)sendCfg()};
 $('#mT').onclick=()=>{if(role==1)return;cfg.mode='time';save();renderAll();if(role==0)sendCfg()};
 $('#bStart').onclick=()=>{sendCfg();tx({t:'start'});begin()};
 $('#bAgain').onclick=()=>{tx({t:'lobby'});toLobby()};
-function mkG(){return{mode:cfg.mode,goals:cfg.goals,mins:cfg.mins,bc:[cfg.col,gc],pc:[cfg.pc??0,gp==(cfg.pc??0)?((cfg.pc??0)+1)%PCOLS.length:gp],bm:cfg.bm,hw:Math.round(Math.min(900,Math.max(450,H*Math.min(innerWidth/innerHeight,ga))))}}
+function mkG(){return{mode:cfg.mode,goals:cfg.goals,mins:cfg.mins,bc:[cfg.col,gc],pc:[cfg.pc??0,gp==(cfg.pc??0)?((cfg.pc??0)+1)%PCOLS.length:gp],bm:cfg.bm,lay:cfg.lay,hw:Math.round(Math.min(1300,Math.max(320,H*(cfg.lay?Math.min(innerHeight/innerWidth,1/ga):Math.min(innerWidth/innerHeight,ga)))))}}
 function sendCfg(){G=mkG();tx({t:'cfg',G})}
 // ---- network
 function on(m){switch(m.t){
@@ -161,14 +164,14 @@ function on(m){switch(m.t){
   case'in':if(S){S.tb[0]=m.x;S.tb[1]=m.y}break;
   case's':V=m;V.at=performance.now();break}}
 // ---- game setup
-function begin(){HW=G.hw;W=HW*2;
+function begin(){HW=G.hw;W=HW*2;lay=G.lay||0;
   BUMP=G.bm?[[.5*HW,.26*H],[.72*HW,.76*H],[W-.5*HW,H-.26*H],[W-.72*HW,H-.76*H]]:[];
   const bu=BUMP.map(b=>b.slice()),bv=BUMP.map((b,i)=>{const an=Math.random()*6.283,sp=G.bm==2?(55+Math.random()*35):0;return[Math.cos(an)*sp,Math.sin(an)*sp]});
   const a=[HW*.18,H/2],b=[W-HW*.18,H/2];
   S={bu,bv,px:HW,py:H/2,vx:0,vy:0,a:a.slice(),b:b.slice(),ta:a.slice(),tb:b.slice(),va:[0,0],vb:[0,0],sc:[0,0],ph:'cd',lab:'3',tm:0,gl:0,left:G.mode=='time'?G.mins*60:0,sd:false,ev:0,et:0,win:-1};
   V=role==0?snap():null;trail=[];inp=null;lastE=0;show('game');playing=true;resize();
   try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()}catch(e){}
-  try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}}
+  try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}}
 const snap=()=>({t:'s',u:S.bu.map(b=>[b[0]|0,b[1]|0]),p:[S.px|0,S.py|0,S.vx|0,S.vy|0],a:[S.a[0]|0,S.a[1]|0],b:[S.b[0]|0,S.b[1]|0],sc:S.sc,ph:S.ph,lab:S.lab,l:Math.ceil(S.left),sd:S.sd,e:[S.ev,S.et],w:S.win});
 // ---- host physics
 const ev=t=>{S.ev++;S.et=t};
@@ -208,12 +211,13 @@ function step(dt){
   const sp=Math.hypot(S.vx,S.vy);if(sp>1700){S.vx*=1700/sp;S.vy*=1700/sp}}
 // ---- input
 function resize(){const d=devicePixelRatio||1;cv.width=innerWidth*d;cv.height=innerHeight*d;
-  sc=Math.min(innerWidth/HW,innerHeight/H);bx=(innerWidth-HW*sc)/2;by=(innerHeight-H*sc)/2}
-addEventListener('resize',resize);
+  if(lay){sc=Math.min(innerHeight/HW,innerWidth/H);ox=(innerWidth-H*sc)/2;oy=(innerHeight-HW*sc)/2}
+  else{sc=Math.min(innerWidth/HW,innerHeight/H);bx=(innerWidth-HW*sc)/2;by=(innerHeight-H*sc)/2}}
+addEventListener('resize',()=>{resize();if(scr=='lobby')sendCol()});
 function pt(e){if(!playing)return;const m=e.pointerType=='mouse';
   if(e.type=='pointerdown'&&tp===null){tp=e.pointerId;cv.setPointerCapture(e.pointerId)}
   if(!m&&e.pointerId!==tp)return;
-  const x=(e.clientX-bx)/sc+(role?HW:0),y=(e.clientY-by)/sc;
+  const x0=role?HW:0,x=lay?(e.clientY-oy)/sc+x0:(e.clientX-bx)/sc+x0,y=lay?(e.clientX-ox)/sc:(e.clientY-by)/sc;
   if(role==0&&S){S.ta[0]=x;S.ta[1]=y}else{inp=[x,y];dirty=true}}
 cv.addEventListener('pointerdown',pt);cv.addEventListener('pointermove',pt);
 cv.addEventListener('pointerup',e=>{if(e.pointerId===tp)tp=null});cv.addEventListener('pointercancel',e=>{if(e.pointerId===tp)tp=null});
@@ -224,12 +228,13 @@ function sfx(t){if(!ac)return;try{const o=ac.createOscillator(),g=ac.createGain(
   o.frequency.value=[0,330,520,220,140][t];o.type=t==4?'sawtooth':'triangle';g.gain.value=.07;o.connect(g);g.connect(ac.destination);
   o.start();g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.stop(ac.currentTime+d+.01)}catch(e){}}
 // ---- render
-function txt(t,x,y,sz,col,a){ctx.save();ctx.translate(x,y);ctx.rotate(role?-Math.PI/2:Math.PI/2);ctx.globalAlpha=a;
-  ctx.font='900 '+sz+'px "Arial Black",Impact,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=col;
-  ctx.shadowColor=col;ctx.shadowBlur=a>.5?24:0;ctx.fillText(t,0,0);ctx.restore()}
+function toS(x,y){const x0=role?HW:0;return lay?[y*sc+ox,(x-x0)*sc+oy]:[(x-x0)*sc+bx,y*sc+by]}
+function txt(t,x,y,sz,col,a){const d=devicePixelRatio||1,p=toS(x,y),c=ctx;c.save();c.setTransform(d,0,0,d,0,0);c.translate(p[0],p[1]);
+  c.rotate(lay?(role?0:Math.PI):(role?-Math.PI/2:Math.PI/2));c.globalAlpha=a;c.font='900 '+sz*sc+'px "Arial Black",Impact,sans-serif';
+  c.textAlign='center';c.textBaseline='middle';c.fillStyle=col;c.shadowColor=col;c.shadowBlur=a>.5?24:0;c.fillText(t,0,0);c.restore()}
 function draw(){const d=devicePixelRatio||1,side=role,x0=side?HW:0,me=G?PCOLS[G.pc[side]]:'#ff4b3e',c=ctx;
   c.setTransform(1,0,0,1,0,0);c.fillStyle='#0d0b2b';c.fillRect(0,0,cv.width,cv.height);
-  c.setTransform(sc*d,0,0,sc*d,(bx-(side?HW*sc:0))*d,by*d);
+  if(lay)c.setTransform(0,sc*d,sc*d,0,ox*d,(oy-x0*sc)*d);else c.setTransform(sc*d,0,0,sc*d,(bx-(side?HW*sc:0))*d,by*d);
   c.save();c.beginPath();c.rect(x0,0,HW,H);c.clip();
   const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,'#2e30c4');g.addColorStop(1,'#1a1272');c.fillStyle=g;c.fillRect(x0,0,HW,H);c.fillStyle=me+'1f';c.fillRect(x0,0,HW,H);
   c.strokeStyle='rgba(255,255,255,.16)';c.lineWidth=3;
