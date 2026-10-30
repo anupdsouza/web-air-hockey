@@ -35,7 +35,7 @@ textarea{font:11px monospace;width:min(86vw,340px);height:64px;color:#fff;backgr
 <p class="sub">One table across two screens. Lay the devices side by side, edge to edge.</p>
 <p class="sub" id="mode"></p><button class="btn pri" id="bHost">Host a game</button>
 <div class="row"><input id="iCode" inputmode="numeric" maxlength="4" placeholder="Code" autocomplete="off"><button class="btn" id="bJoin">Join</button></div>
-<button class="lnk" id="bOff">No internet? Connect with QR codes</button><button class="lnk" id="bSet">Settings</button></div>
+<button class="lnk" id="bOff">No internet? Connect with QR codes</button><button class="lnk" id="bSet">Settings</button><p class="sub" id="ver" style="font-size:12px;opacity:.6"></p></div>
 <div id="off" class="scr"><h2>No internet</h2><p class="sub" id="oS"></p>
 <div id="oM" style="display:flex;flex-direction:column;gap:12px"><button class="btn pri" id="oH">This device hosts</button><button class="btn" id="oJ">This device joins</button></div>
 <div id="qrBox"></div><video id="vid" playsinline muted style="display:none;width:min(78vw,340px);border-radius:10px"></video>
@@ -56,7 +56,8 @@ textarea{font:11px monospace;width:min(86vw,340px);height:64px;color:#fff;backgr
 <button class="btn pri" id="bAgain">Back to lobby</button><p class="sub" id="rW">Waiting for host…</p><button class="lnk" id="bExit">Leave</button></div>
 <script src="lib/peerjs.min.js"></script><script src="lib/qr.js"></script><script src="lib/jsQR.js"></script>
 <script>
-if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+const VER="v7";
+if("serviceWorker"in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.register("sw.js").catch(()=>{});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had&&scr=="home")location.reload()})}
 const $=s=>document.querySelector(s),cv=$('#cv'),ctx=cv.getContext('2d');
 const H=900,PR=24,KR=42,BR=28,GY0=270,GY1=630;
 let HW=600,H1=600,W=1200,BUMP=[];
@@ -151,7 +152,7 @@ $('#mT').onclick=()=>{if(role==1)return;cfg.mode='time';save();renderAll();if(ro
 $('#bStart').onclick=()=>{sendCfg();tx({t:'start'});begin()};
 $('#bAgain').onclick=()=>{tx({t:'lobby'});toLobby()};
 function mkG(){return{mode:cfg.mode,goals:cfg.goals,mins:cfg.mins,bc:[cfg.col,gc],pc:[cfg.pc??0,gp==(cfg.pc??0)?((cfg.pc??0)+1)%PCOLS.length:gp],bm:cfg.bm,lay:cfg.lay,hw:[hwOf(innerWidth/innerHeight),hwOf(ga)]}}
-const hwOf=a=>Math.round(Math.min(1600,Math.max(250,H*(cfg.lay?1/a:a))));
+const hwOf=a=>Math.round(Math.min(3200,Math.max(250,H*(cfg.lay?1/a:a))));
 function sendCfg(){G=mkG();tx({t:'cfg',G})}
 // ---- network
 function on(m){switch(m.t){
@@ -285,5 +286,5 @@ function loop(t){requestAnimationFrame(loop);if(!playing){last=t;return}
   else if(role==1&&dirty){tx({t:'in',x:inp[0],y:inp[1]});dirty=false}
   if(scr=='game'&&V&&V.ph=='over')showResult();
   draw()}
-renderAll();requestAnimationFrame(loop);
+$('#ver').textContent='Version '+VER;renderAll();requestAnimationFrame(loop);
 </script></body></html>
