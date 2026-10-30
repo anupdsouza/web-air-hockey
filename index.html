@@ -56,10 +56,10 @@ textarea{font:11px monospace;width:min(86vw,340px);height:64px;color:#fff;backgr
 <button class="btn pri" id="bAgain">Back to lobby</button><p class="sub" id="rW">Waiting for host…</p><button class="lnk" id="bExit">Leave</button></div>
 <script src="lib/peerjs.min.js"></script><script src="lib/qr.js"></script><script src="lib/jsQR.js"></script>
 <script>
-const VER="v7";
+const VER="v8";
 if("serviceWorker"in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.register("sw.js").catch(()=>{});navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had&&scr=="home")location.reload()})}
 const $=s=>document.querySelector(s),cv=$('#cv'),ctx=cv.getContext('2d');
-const H=900,PR=24,KR=42,BR=28,GY0=270,GY1=630;
+const H=900,GY0=270,GY1=630;let PR=24,KR=42,BR=28,U=1;
 let HW=600,H1=600,W=1200,BUMP=[];
 const PCOLS=['#ff4b3e','#35e6ff','#ffd23c','#3cff9a','#e63cff','#ff8a3c'];
 const COLS=['#e63cff','#ffd23c','#3cff9a','#ff7a3c','#ffffff','#3c8bff'];
@@ -167,9 +167,9 @@ function on(m){switch(m.t){
   case'in':if(S){S.tb[0]=m.x;S.tb[1]=m.y}break;
   case's':V=m;V.at=performance.now();break}}
 // ---- game setup
-function begin(){HW=G.hw[0];H1=G.hw[1];W=HW+H1;lay=G.lay||0;
+function begin(){HW=G.hw[0];H1=G.hw[1];W=HW+H1;lay=G.lay||0;U=Math.min(3.2,Math.max(1,Math.min(HW,H1)/600));PR=24*U;KR=42*U;BR=28*U;
   BUMP=G.bm?[[.5*HW,.26*H],[.72*HW,.76*H],[W-.5*H1,H-.26*H],[W-.72*H1,H-.76*H]]:[];
-  const bu=BUMP.map(b=>b.slice()),bv=BUMP.map((b,i)=>{const an=Math.random()*6.283,sp=G.bm==2?(55+Math.random()*35):0;return[Math.cos(an)*sp,Math.sin(an)*sp]});
+  const bu=BUMP.map(b=>b.slice()),bv=BUMP.map((b,i)=>{const an=Math.random()*6.283,sp=G.bm==2?(55+Math.random()*35)*U:0;return[Math.cos(an)*sp,Math.sin(an)*sp]});
   const a=[HW*.18,H/2],b=[W-H1*.18,H/2];
   S={bu,bv,px:HW,py:H/2,vx:0,vy:0,a:a.slice(),b:b.slice(),ta:a.slice(),tb:b.slice(),va:[0,0],vb:[0,0],sc:[0,0],ph:'cd',lab:'3',tm:0,gl:0,left:G.mode=='time'?G.mins*60:0,sd:false,ev:0,et:0,win:-1};
   V=role==0?snap():null;trail=[];inp=null;lastE=0;lastMy=0;lastLab='';show('game');playing=true;resize();
@@ -194,10 +194,10 @@ function hit(cx,cy,r,cvx,cvy,t){const dx=S.px-cx,dy=S.py-cy,d=Math.hypot(dx,dy),
   S.py=Math.min(H-PR,Math.max(PR,S.py))}
 function step(dt){
   for(const k of[0,1]){const p=k?S.b:S.a,t=k?S.tb:S.ta,v=k?S.vb:S.va;
-    let dx=t[0]-p[0],dy=t[1]-p[1];const d=Math.hypot(dx,dy),m=3600*dt;if(d>m){dx*=m/d;dy*=m/d}
+    let dx=t[0]-p[0],dy=t[1]-p[1];const d=Math.hypot(dx,dy),m=3600*U*dt;if(d>m){dx*=m/d;dy*=m/d}
     const nx=Math.min(k?W-KR:HW-KR,Math.max(k?HW+KR:KR,p[0]+dx)),ny=Math.min(H-KR,Math.max(KR,p[1]+dy));
     v[0]=(nx-p[0])/dt;v[1]=(ny-p[1])/dt;p[0]=nx;p[1]=ny}
-  if(S.ph!='over')S.bu.forEach((b,i)=>{const v=S.bv[i],lo=i<2?100:HW+50,hi=i<2?HW-50:W-100;
+  if(S.ph!='over')S.bu.forEach((b,i)=>{const v=S.bv[i],lo=i<2?100*U:HW+50*U,hi=i<2?HW-50*U:W-100*U;
     b[0]+=v[0]*dt;b[1]+=v[1]*dt;
     if(b[0]<lo){b[0]=lo;v[0]=Math.abs(v[0])}if(b[0]>hi){b[0]=hi;v[0]=-Math.abs(v[0])}
     if(b[1]<BR+20){b[1]=BR+20;v[1]=Math.abs(v[1])}if(b[1]>H-BR-20){b[1]=H-BR-20;v[1]=-Math.abs(v[1])}});
@@ -211,7 +211,7 @@ function step(dt){
   if(S.px<-PR)return goal(1);if(S.px>W+PR)return goal(0);
   S.bu.forEach((b,i)=>hit(b[0],b[1],BR,S.bv[i][0],S.bv[i][1],3));
   hit(S.a[0],S.a[1],KR,S.va[0],S.va[1],2);hit(S.b[0],S.b[1],KR,S.vb[0],S.vb[1],2);
-  const sp=Math.hypot(S.vx,S.vy);if(sp>1700){S.vx*=1700/sp;S.vy*=1700/sp}}
+  const sp=Math.hypot(S.vx,S.vy);if(sp>1700*U){S.vx*=1700*U/sp;S.vy*=1700*U/sp}}
 // ---- input
 function resize(){const d=devicePixelRatio||1;cv.width=innerWidth*d;cv.height=innerHeight*d;
   const ml=role==1?W-HW:HW;
